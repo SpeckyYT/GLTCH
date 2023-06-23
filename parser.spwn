@@ -1,0 +1,86 @@
+scripts_folder = "DDLCModTemplate2.0/Original Game Scripts/"
+
+let names = {
+    narr: "",           // narrator
+    mc: "RobTop",       // main character
+    s: "???",           // sayori
+    y: "Girl 1",        // yuri
+    n: "Girl 2",        // natsuki
+    m: "Girl 3",        // monika
+    ny: "Nat & Yuri",   // kazumi
+}
+
+act1_files = [ i for i in 0..6 ]
+act2_files = [ 10 ] + [ i for i in 20..24 ]
+act3_files = [ 30 ]
+act4_files = [ 40 ]
+
+type @text
+impl @text {
+    new: (content: @string, speaker: @string = "narr") {
+        return @text::{
+            typ: "narration",
+            content,
+            speaker,
+        }
+    },
+    code: (code: @string) {
+        return @text::{
+            typ: "code",
+            code,
+        }
+    }
+}
+
+impl @string {
+    // FIX
+    starts_with: #[desc("Checks if the string starts with a string.")]
+	(self, substr: @string) -> @bool {
+		if substr == '' { return true }
+		if substr.length > self.length { return false }
+		return self.substr(0, substr.length) == substr;
+	},
+    ends_with: #[desc("Checks if the string starts with a string.")]
+	(self, substr: @string) -> @bool {
+		if substr == '' { return true }
+		if substr.length > self.length { return false }
+		return self.substr(self.length-substr.length, self.length) == substr;
+	},
+}
+
+let narration = []
+
+for i in [ ..act1_files ] {
+    start_time = $.time()
+    let current_script = "script-ch{}.rpy".fmt(i)
+
+    script_path = scripts_folder + current_script
+
+    script = $.readfile(script_path).replace("\r","").split("\n")
+
+    for i in 0..script.length {
+        line = script[i].trim()
+        if line.length == 0 { continue }
+
+        if line.starts_with('"') && line.ends_with('"') { // NARRATOR
+            narrator = @array(line)[1:-1]
+            narration.push(@text::new(narrator.join("")))
+        } else if names.keys().any(name => line.starts_with(name + " ")) { // PERSON TALKING
+            character = line.split(" ")[0]
+            content = @array(line)[line.index('"')+1:-1].join("")
+            narration.push(@text::new(content, character))
+        } else if line.starts_with("$") { // CODE
+            code = @array(line)[2:].join("")
+            narration.push(@text::code(code))
+        } else {
+            // $.print("🤨: {}".fmt(line))
+        }
+    }
+
+    $.print("PARSED {} ({}s)".fmt([current_script, ($.time() - start_time).to_fixed(3)]))
+}
+
+return {
+    names,
+    narration,
+}

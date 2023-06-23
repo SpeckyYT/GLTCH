@@ -1,0 +1,85 @@
+extract obj_props
+
+extract import "parser.spwn"
+
+let TEXT_X = 75
+TEXT_Y = 135
+CHARACTER_OFFSET_X = -90
+CHARACTER_OFFSET_Y = 45
+TEXT_OFFSET = 900
+
+TEXT_GROUP = ?g
+
+for i in 0..narration.length {
+    line = narration[i]
+
+    match line.typ {
+        =="narration": () {
+            is_narrator = line.speaker == "narr"
+            name = names[line.speaker]
+            content = line.content.replace(r"\[player\]", names["mc"])
+            string = content if is_narrator else '"{}"'.fmt(content)
+
+            let strings = [""]
+            for string in string.split(" ") {
+                if strings[strings.length-1].length != 0 && strings[strings.length-1].length + string.length >= 30 {
+                    strings.push("")
+                }
+                strings[strings.length-1] += " " + string if strings[strings.length-1].length > 0 else string
+            }
+
+            $.add(
+                strings.join("\n").trim().
+                fmt([name, content]).
+                to_obj().
+                with(X, TEXT_X).
+                with(Y, TEXT_Y).
+                with(GROUPS, TEXT_GROUP).
+                with(DONT_FADE, true).
+                with(DONT_ENTER, true)
+            )
+            if !is_narrator {
+                $.add(
+                    name.
+                    to_obj().
+                    with(X, TEXT_X + CHARACTER_OFFSET_X).
+                    with(Y, TEXT_Y + CHARACTER_OFFSET_Y).
+                    with(GROUPS, TEXT_GROUP).
+                    with(DONT_FADE, true).
+                    with(DONT_ENTER, true)
+                )
+            }
+
+            TEXT_X += TEXT_OFFSET
+        } (),
+        =="code": () {
+            code = line.code
+
+            for name in names.keys() {
+                variable_name = "{}_name =".fmt(name)
+                if code.starts_with(variable_name) {
+                    double_quote = code.index('"')
+                    single_quote = code.index("'")
+                    quote_index = match null {
+                        ==double_quote: single_quote,
+                        ==single_quote: double_quote,
+                        else: $.print("🤓: {}".fmt(code)),
+                    }
+
+                    let names[name] = @array(code)[quote_index+1:-1].join("")
+                    // $.print("😡: {}".fmt(names))
+                }
+            }
+        } (),
+    }
+}
+
+// -> TEXT_GROUP.lock_to_player(lock_x = true, lock_y = false)
+SLOW_SPEED = 8.373 // blocks per second
+
+TIME = narration.length * (TEXT_OFFSET/30) / SLOW_SPEED
+-> TEXT_GROUP.move(narration.length * TEXT_OFFSET / 3, 0, TIME)
+
+on(touch(), !{
+    -> TEXT_GROUP.move(-TEXT_OFFSET/3, 0)
+})
